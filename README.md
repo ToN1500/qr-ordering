@@ -1,0 +1,115 @@
+# QR Code Ordering System
+
+ระบบสั่งอาหารสำหรับร้านอาหารผ่านรหัส QR Code (Table-based QR Code Ordering System) แยกการทำงานเป็นฝั่งลูกค้า (Customer App) และฝั่งผู้ดูแลระบบ (Admin Dashboard) อย่างชัดเจนและรัดกุม ทำงานแบบ Real-time และทำงานร่วมกับระบบฐานข้อมูล PostgreSQL 100% บนสภาพแวดล้อม Docker
+
+---
+
+## 📋 ภาพรวมระบบ (System Overview)
+
+1. **ฝั่งลูกค้า (Customer Client - apps/web):**
+   - เข้าถึงผ่านการสแกน QR Code ประจำโต๊ะ (เช่น `/?table=1`)
+   - ระบบควบคุมการสั่งอาหารด้วยระบบ Session (Session Guardian) ป้องกันการเปิดข้ามโต๊ะหรือการสั่งซ้ำซ้อน
+   - แสดงเมนูอาหารแยกตามหมวดหมู่ สามารถเลือกตัวเลือกย่อยของเมนูได้ (เช่น ระดับความสุก หรือความเผ็ด)
+   - ส่งคำสั่งซื้อแบบ Multi-round สั่งอาหารเพิ่มได้เรื่อยๆ ตราบใดที่ Session ยังคงเป็นแบบ Active
+   - เมื่อลูกค้ากดปุ่ม "เรียกเช็คบิล" ระบบจะเปลี่ยนเข้าสู่หน้าจอสรุปยอดเงิน (Bill Summary View) และบล็อกไม่ให้สั่งอาหารเพิ่ม
+   - เมื่อผู้ดูแลระบบยืนยันปิดโต๊ะและชำระเงินสำเร็จ หน้าจอลูกค้าจะเปลี่ยนเป็นหน้าจอขอบคุณ (Thank You Screen) แบบ Real-time ทันที
+
+2. **ฝั่งผู้ดูแลระบบ (Admin Dashboard - apps/web/admin):**
+   - เข้าถึงด้วยระบบรักษาความปลอดภัย JWT Authentication พร้อมการเข้ารหัสรหัสผ่านด้วย Bcrypt
+   - แสดงสถานะของทุกโต๊ะอาหารแบบเรียลไทม์ (Available, Active, Calling Bill)
+   - ขึ้นแถบแจ้งเตือนสี Amber "Billing Requested" และปุ่มยืนยันชำระเงินเมื่อลูกค้าส่งคำขอเช็คบิล
+   - ใช้ระบบ Custom Confirmation Modal เพื่อยืนยันการรับชำระเงินและปิดโต๊ะอย่างเป็นทางการ
+   - หน้าจอจัดการอัปเดตสถานะของรายการอาหารและใบสั่งซื้อแยกแต่ละรายการ
+
+---
+
+## 🎨 แนวทางการออกแบบ (Design System)
+
+- **Monocle Aesthetic:** แนวทางออกแบบสไตล์เรียบหรู มินิมัลลิสต์ เน้นความหรูหราแบบคลาสสิก
+- **Typography:** ใช้ฟอนต์กลุ่ม Serif เช่น Iowan Old Style หรือ Outfit ผ่าน Google Fonts แทนฟอนต์เริ่มต้นของเบราว์เซอร์
+- **Color Palette:** คุมโทนพรีเมียมด้วยสีขาว-ดำ สลับเทาหม่น และเน้นสีบ่งชี้สถานะเฉพาะเจาะจง:
+  - สีเขียว (Emerald) สำหรับสถานะปกติ / ใช้งานได้
+  - สีแดง (Rose) สำหรับสถานะปฏิเสธ / ยกเลิก
+  - สีส้ม/เหลือง (Amber) สำหรับสถานะเรียกเช็คบิล / รอการยืนยัน
+- **No-Emoji Policy:** ห้ามใช้สัญลักษณ์อิโมจิในหน้าจอฝั่งลูกค้าและผู้ดูแลระบบทุกกรณี เพื่อรักษาภาพลักษณ์ความเป็นระบบระดับพรีเมียม
+
+---
+
+## 🛡️ มาตรการด้านความปลอดภัย (Security Hardening)
+
+1. **HTTP Security Headers:**
+   - ปิดใช้งานตัวบ่งชี้เซิร์ฟเวอร์ Express (`X-Powered-By`) เพื่อป้องกันการสแกนหาช่องโหว่ของระบบ
+   - ติดตั้ง Custom Security Headers Middleware ป้องกันการโจมตีพื้นฐาน:
+     - `X-Frame-Options: DENY` (ป้องกัน Clickjacking)
+     - `X-Content-Type-Options: nosniff` (ป้องกัน MIME sniffing)
+     - `X-XSS-Protection: 1; mode=block` (ป้องกัน XSS)
+     - `Content-Security-Policy: default-src 'none';` (ควบคุมความปลอดภัยการดึงข้อมูลจากภายนอก)
+
+2. **Socket.io & API CORS Protection:**
+   - จำกัดสิทธิ์การร้องขอข้อมูล (CORS Configuration) ทั้งบน REST API และ Socket.io WebSockets โดยผูกมัดค่าต้นทางกับตัวแปรสภาพแวดล้อม `FRONTEND_URL` ใน `.env` เท่านั้น
+
+3. **Rate Limiting:**
+   - ป้องกันการโจมตีแบบ Brute-force บนหน้าจอแอดมินด้วย `loginLimiter` (จำกัดความถี่การพยายามเข้าสู่ระบบไม่เกิน 5 ครั้งต่อ 15 นาที)
+   - จำกัดความถี่การร้องขอข้อมูล API ทั่วไปไม่เกิน 2000 ครั้งต่อ 15 นาที (`apiLimiter`) เพื่อรองรับสถาปัตยกรรมเครือข่าย NAT ของร้านอาหาร
+
+4. **PostgreSQL Network Isolation:**
+   - ในไฟล์ `docker-compose.yml` จะทำการ Expose พอร์ตฐานข้อมูล `5432` ให้อยู่ภายใต้ `127.0.0.1` เท่านั้น ป้องกันไม่ให้บุคคลภายนอกสามารถโจมตีฐานข้อมูลตรงๆ จากภายนอกเครือข่ายได้ แต่ยังอนุญาตให้นักพัฒนารันเทสต์บนเครื่อง local ได้ปกติ
+
+---
+
+## 📂 โครงสร้างโฟลเดอร์โครงการ (Project Directory Structure)
+
+```text
+qr-ordering/
+├── apps/
+│   ├── server/           # Backend API (Node.js/Express, Knex ORM, Winston Logger)
+│   └── web/              # Frontend (Next.js 16 - App Router, Socket.io-client)
+├── docs/                 # เอกสารข้อกำหนดและการตั้งค่าความทรงจำของระบบ
+│   ├── api-spec.md             # รายละเอียดข้อกำหนด REST API
+│   ├── db-schema.md            # โครงสร้างตารางและแผนภาพ PostgreSQL
+│   ├── ui-style-guide.md       # สไตล์ไกด์และโทนสีพรีเมียมที่ใช้
+│   ├── web-socket-learning.md  # บทเรียนและการแก้ปัญหา WebSockets ในระบบ
+│   ├── production-setup-guide.md # คู่มือการตั้งค่า Docker สำหรับใช้งานจริง
+│   └── project-memory.md       # สรุปความทรงจำของโครงการ (Checkpoint Log สำหรับ AI)
+├── docker-compose.yml    # การตั้งค่า Docker Multi-container สำหรับระบบทั้งหมด
+├── .env                  # ไฟล์จัดเก็บคีย์ความปลอดภัยและพารามิเตอร์ของระบบ (.gitignore ครอบคลุมแล้ว)
+├── .gitignore            # ตัวกรองการอัปโหลดไฟล์ขึ้น Git ของโปรเจกต์
+└── README.md             # คู่มือการติดตั้งและข้อมูลภาพรวมโครงการนี้
+```
+
+---
+
+## 🚀 ขั้นตอนการติดตั้งและรันระบบ (Setup & Running Guide)
+
+### 1. การตั้งค่าสภาพแวดล้อม (Prerequisites)
+ตรวจสอบให้แน่ใจว่าเครื่องของคุณได้ติดตั้งเครื่องมือเหล่านี้แล้ว:
+- Docker & Docker Compose
+- Node.js (เวอร์ชัน 20 ขึ้นไปสำหรับการทดสอบ Local)
+
+### 2. การสร้างตัวแปรสภาพแวดล้อม (.env)
+คัดลอกตัวอย่างและระบุค่าที่เหมาะสมในไฟล์ `.env` ที่ Root Directory:
+```bash
+# คัดลอกจากค่าตัวอย่างที่มีให้
+# กำหนด JWT_SECRET เป็น hex key 64 ตัวอักษร
+# กำหนด ADMIN_PASSWORD_HASH เป็นรหัสผ่านแอดมินที่แฮชผ่าน bcrypt เรียบร้อยแล้ว
+```
+
+### 3. การรันระบบผ่าน Docker Compose
+สตาร์ทระบบทั้งหมดด้วยคำสั่ง (ระบบจะตรวจสอบ Healthcheck ฐานข้อมูล และสั่งรัน Migrations ให้โดยอัตโนมัติ):
+```bash
+docker compose up --build -d
+```
+- **Customer Web:** เข้าใช้งานได้ที่ [http://localhost:3005](http://localhost:3005)
+- **Admin Dashboard:** เข้าใช้งานได้ที่ [http://localhost:3005/admin](http://localhost:3005/admin)
+- **API Backend:** ทำงานอยู่ที่ [http://localhost:4000](http://localhost:4000)
+
+### 4. การสร้างข้อมูลเมล็ดพันธุ์เริ่มต้น (Database Seeding)
+รันคำสั่งด้านล่างภายในเซิร์ฟเวอร์คอนเทนเนอร์เพื่อเพิ่มข้อมูลจำลองเมนูและโต๊ะอาหารเริ่มต้นสำหรับใช้ทดสอบ:
+```bash
+docker compose exec server npx knex seed:run
+```
+
+### 5. การรันการทดสอบ Unit & Integration Tests (Local)
+เพื่อรักษาระดับคุณภาพของโค้ด ให้ทำการทดสอบในแต่ละโฟลเดอร์ด้วยคำสั่ง:
+- **ทดสอบฝั่ง API Server:** `npm --prefix apps/server run test` (รันผ่าน Vitest)
+- **ทดสอบฝั่ง Next.js Web:** `npm --prefix apps/web run test` (รันผ่าน Vitest ร่วมกับ jsdom)
