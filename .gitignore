@@ -1,0 +1,41 @@
+# Root .gitignore for QR Ordering System
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+.next/
+dist/
+build/
+out/
+
+# Database & Storage
+*.sqlite3
+*.sqlite3-journal
+logs/
+*.log
+
+# Environment & Secrets
+**/.env
+**/.env.local
+**/.env.production
+**/.env.*.local
+
+# IDE & OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Gemini CLI specific
+.gemini/tmp/
+.gemini/cache/
+.gemini/history/
+.antigravitycli/
+
+# Personal / Backup Folders
+user-gemini(Copy)/
+backup/
+temp/
