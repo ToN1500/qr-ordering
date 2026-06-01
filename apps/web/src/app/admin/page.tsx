@@ -70,7 +70,10 @@ export default function AdminPage() {
     fetchTables(storedToken);
 
     // Socket.IO Setup
-    const socket = io('http://127.0.0.1:4000');
+    const socketUrl = process.env.NEXT_PUBLIC_API_URL
+      ? process.env.NEXT_PUBLIC_API_URL.replace(/\/api$/, '')
+      : 'http://127.0.0.1:4000';
+    const socket = io(socketUrl);
 
     socket.on('connect', () => {
       console.log('Admin: Connected to Socket.IO');
