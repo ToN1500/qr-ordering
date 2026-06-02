@@ -6,7 +6,7 @@
 
 คุณสามารถเปิดทดลองใช้งานระบบได้ตามขั้นตอนด้านล่างนี้ (แนะนำเปิดหน้าจอคู่ขนานเพื่อทดสอบการซิงค์ข้อมูลเรียลไทม์):
 
-- **หน้าจอควบคุมสำหรับผู้ดูแลระบบ (Admin Dashboard):** [https://qr-ordering-web.vercel.app/admin](https://qr-ordering-web.vercel.app/admin) (รหัสผ่านทดลอง: `admin1234`)
+- **หน้าจอควบคุมสำหรับผู้ดูแลระบบ (Admin Dashboard):** <a href="https://qr-ordering-web.vercel.app/admin" target="_blank" rel="noopener noreferrer">https://qr-ordering-web.vercel.app/admin</a> (รหัสผ่านทดลอง: `admin1234`)
 
 **ขั้นตอนการทดสอบความเรียลไทม์ (WebSockets Test Flow):**
 1. **เปิดเซสชันโต๊ะอาหาร (Admin):** เข้าสู่หน้าจอแอดมิน คลิกเลือกที่โต๊ะอาหารว่าง (เช่น **Table 1**) แล้วกดปุ่ม **"Open Table"** เพื่อเริ่มต้นเปิดเซสชัน
