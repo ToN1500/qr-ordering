@@ -8,8 +8,8 @@
 - [x] JWT Authentication for Admin
 - [x] Dynamic QR Token (Security)
 - [x] Real-time updates with Socket.io
-- [ ] **Production-grade Database Migration (SQLite -> PostgreSQL)**
-- [ ] **Dockerization (Container for easy deployment)**
+- [x] **Production-grade Database Migration (SQLite -> PostgreSQL)**
+- [x] **Dockerization (Container for easy deployment)**
 - [ ] **Admin Account Management (Create/Update Staff)**
 
 ## 🟡 Priority 1: Important (ควรมีเพื่อความสมบูรณ์)
